@@ -382,12 +382,13 @@ async function main(): Promise<void> {
       )
       await mock.runRtkCommand("", ctx)
       check((await readFile(statePath, "utf8")) === '{"enabled":false}', "state file records enabled=false after toggle off")
-      check(status.at(-1)?.text === "RTK off", `status shows RTK off (got ${status.at(-1)?.text})`)
+      check(status.length === 0, `no status bar writes (got ${JSON.stringify(status)})`)
+      check(notify.some((n) => n.message === "RTK off"), "toggle off notified")
       check((await mock.fireToolCall({ command: "git status" }, "bash", ctx)) === undefined, "no rewrite while off")
       check(mock.rewriteExecCount() === 1, `no rewrite exec while off (got ${mock.rewriteExecCount()})`)
       await mock.runRtkCommand("", ctx)
       check((await readFile(statePath, "utf8")) === '{"enabled":true}', "state file records enabled=true after toggle on")
-      check(status.at(-1)?.text === "RTK on · 0", `status shows RTK on with session savings (got ${status.at(-1)?.text})`)
+      check(notify.some((n) => n.message === "RTK on"), "toggle on notified")
       check(
         rewrittenCommandOf(await mock.fireToolCall({ command: "git status" }, "bash", ctx)) === "rtk git status",
         "rewrites again after re-enable"
@@ -425,10 +426,7 @@ async function main(): Promise<void> {
       await mock.fireSessionStart(ctx)
       const warn = notify.find((n) => n.level === "warning")
       check(warn !== undefined && warn.message.includes("not found in PATH"), `install hint notified (got ${JSON.stringify(warn)})`)
-      check(
-        status.some((s) => s.key === "rtk" && s.text?.startsWith("RTK unavailable: rtk binary not found")),
-        `status carries the reason (got ${JSON.stringify(status.at(-1))})`
-      )
+      check(status.length === 0, `no status bar writes (got ${JSON.stringify(status)})`)
       check((await mock.fireToolCall({ command: "git status" }, "bash", ctx)) === undefined, "tool call passes through when rtk is unavailable")
       check(mock.rewriteExecCount() === 0, "no rewrite exec when rtk is unavailable")
     })
@@ -446,7 +444,7 @@ async function main(): Promise<void> {
     })
   )
 
-  await scenario("handlers register before the probe resolves; in-flight session gets status", () =>
+  await scenario("handlers register before the probe resolves", () =>
     withTempAgentDir(async () => {
       const mock = new MockExtensionAPI()
       const probe = new Deferred<ExecResult>()
@@ -463,13 +461,11 @@ async function main(): Promise<void> {
       check(mock.commands.has("rtk"), "rtk command registered before the probe resolves")
       check(mock.messageRenderers.size === 0, "no message renderers registered (rtk-report removed)")
       await mock.fireSessionStart(ctx)
-      check(status.length === 0, `no status applied while the probe is still pending (got ${JSON.stringify(status)})`)
+      check(status.length === 0, `no status bar writes (got ${JSON.stringify(status)})`)
       probe.resolve(RES(0, "rtk 1.0.1\n"))
       await p
-      check(
-        status.at(-1)?.key === "rtk" && status.at(-1)?.text === "RTK on · 0",
-        `in-flight session receives status once the probe resolves (got ${JSON.stringify(status.at(-1))})`
-      )
+      check(status.length === 0, `still no status bar writes after the probe resolves (got ${JSON.stringify(status)})`)
+      check(mock.rewriteExecCount() === 0, "no rewrite issued merely by resolving the probe")
     })
   )
 
@@ -535,17 +531,23 @@ async function main(): Promise<void> {
     })
   )
 
-  await scenario("gain refreshes the status line", () =>
+  await scenario("gain report carries totals without touching a status line", () =>
     withTempAgentDir(async () => {
       const mock = happyMock()
       mock.script("rtk", ["gain", "--format", "json"], RES(0, gainJson(100, 200)))
       mock.script("rtk", ["gain", "--format", "json"], RES(0, gainJson(272, 396)))
-      const { ctx, status } = makeContext()
+      const { ctx, status, notify } = makeContext()
       await factory(mock as unknown as ExtensionAPI)
       await mock.fireSessionStart(ctx)
-      check(status.at(-1)?.text === "RTK on · 0", `baseline captured at session start (got ${status.at(-1)?.text})`)
       await mock.runRtkCommand("gain", ctx)
-      check(status.at(-1)?.text === "RTK on · 172", `status refreshed after gain (got ${status.at(-1)?.text})`)
+      check(status.length === 0, `no status bar writes (got ${JSON.stringify(status)})`)
+      const report = reportOf(mock.appendEntryCalls.at(-1))
+      check(report !== undefined && report.title === "rtk gain", "gain report appended")
+      check(
+        report!.lines.some((l) => l.includes("272")) && report!.lines.some((l) => l.includes("396")),
+        `gain report carries totals (got ${JSON.stringify(report!.lines)})`
+      )
+      check(notify.some((n) => n.message.includes("total saved")), "gain report notified")
     })
   )
 

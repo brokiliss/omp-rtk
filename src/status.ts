@@ -4,23 +4,6 @@ export function formatShort(n: number): string {
   return `${(rounded / 1000).toFixed(1).replace(/\.0$/, "")}k`
 }
 
-export function composeStatus(input: {
-  available: boolean
-  enabled: boolean
-  sessionSaved: number | null
-  reason?: string
-}): string {
-  if (!input.available) {
-    return `RTK unavailable: ${input.reason ?? "unknown reason"}`
-  }
-  if (!input.enabled) return "RTK off"
-  let text = "RTK on"
-  if (input.sessionSaved !== null) {
-    text += ` · ${formatShort(input.sessionSaved)}`
-  }
-  return text
-}
-
 export function computeSessionSaved(
   current: { total_saved: number },
   baseline: { total_saved: number } | null

@@ -18,7 +18,7 @@ import {
   type GainSummary,
 } from "./rtk"
 import { loadState, resolveStatePath, saveState } from "./state"
-import { composeStatus, computeSessionSaved, formatShort } from "./status"
+import { computeSessionSaved, formatShort } from "./status"
 
 const PROBE_TIMEOUT_MS = 2_000
 const GAIN_TIMEOUT_MS = 2_000
@@ -122,27 +122,9 @@ export default async function (pi: ExtensionAPI): Promise<void> {
   let corruptedState = loaded.corrupted
   let availability: Availability | null = null
   let baseline: GainSummary | null = null
-  let sessionSaved: number | null = null
   const unmatched = new Map<string, number>()
   let warnedUnavailable = false
   let pendingSessionCtx: ExtensionContext | undefined
-
-  function refreshStatus(ctx: ExtensionContext): void {
-    if (availability === null) return
-    try {
-      ctx.ui.setStatus(
-        "rtk",
-        composeStatus({
-          available: availability.ok,
-          enabled,
-          sessionSaved,
-          reason: availability.reason,
-        })
-      )
-    } catch {
-      // Status reporting must never affect fail-open behavior.
-    }
-  }
 
   function warnUnavailableOnce(ctx: ExtensionContext): void {
     if (warnedUnavailable || availability === null || availability.ok) return
@@ -175,8 +157,6 @@ export default async function (pi: ExtensionAPI): Promise<void> {
       notify(ctx, "omp-rtk: state file is corrupted; rewriting stays enabled by default", "warning")
     }
     baseline = await fetchGain(pi)
-    sessionSaved = baseline !== null ? 0 : null
-    refreshStatus(ctx)
     warnUnavailableOnce(ctx)
   })
 
@@ -208,7 +188,6 @@ export default async function (pi: ExtensionAPI): Promise<void> {
           } catch (err) {
             notify(ctx, `omp-rtk: failed to save state: ${err instanceof Error ? err.message : String(err)}`, "warning")
           }
-          refreshStatus(ctx)
           notify(ctx, enabled ? "RTK on" : "RTK off")
           break
         }
@@ -254,8 +233,6 @@ export default async function (pi: ExtensionAPI): Promise<void> {
               `total saved: ${Math.round(summary.total_saved)} tokens`,
               `savings rate: ${pct}%`
             )
-            sessionSaved = baseline !== null ? computeSessionSaved(summary, baseline) : null
-            refreshStatus(ctx)
           } else {
             lines.push(...(await plainGainText(pi, sanitized.args)))
           }
@@ -375,7 +352,6 @@ export default async function (pi: ExtensionAPI): Promise<void> {
   availability = await probeRtk(pi)
   // A session that started while the probe was in flight applies availability state now.
   if (pendingSessionCtx !== undefined) {
-    refreshStatus(pendingSessionCtx)
     warnUnavailableOnce(pendingSessionCtx)
   }
 }

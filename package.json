@@ -1,6 +1,6 @@
 {
   "name": "omp-rtk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",
@@ -9,7 +9,7 @@
   },
   "omp": {
     "name": "omp-rtk",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "rtk bash command rewriting plus an /rtk management command for omp",
     "extensions": ["./src/index.ts"]
   },

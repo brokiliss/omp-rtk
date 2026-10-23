@@ -6,8 +6,7 @@ Bash command rewriting via [rtk](https://github.com/rtk-ai/rtk) plus an `/rtk` m
 
 - **Bash rewrite** — every bash tool call is offered to `rtk rewrite` before execution. When rtk exits 0 or 3 with output, the command is replaced (for example `git status` executes as `rtk git status`). Exit 1/2, timeouts, empty output and exec failures always pass the original command through, so a missing or broken rtk can never block the agent.
 - **`/rtk` command set** — toggle the integration, show status, view gain totals, run diagnostics and see missed rewrites without leaving the session. Command output never enters the model context: long reports render as session entries plus a full-text notification.
-- **Status line** — the footer shows `RTK on · <session savings>`, `RTK off` or `RTK unavailable: <reason>`.
-- **Session savings** — a `rtk gain --format json` baseline is captured at session start; the footer shows the session delta.
+- **No visible chrome** — the plugin writes nothing to the status bar or footer; it only acts on commands and on what you ask for.
 - **Persisted toggle** — the on/off state survives restarts; writes are atomic and a corrupted file falls back to enabled with one warning per session.
 
 Setting `RTK_DISABLED=1` disables rewriting without unloading the plugin.
@@ -40,7 +39,7 @@ omp plugin install ./omp-rtk   # user scope (the default)
 ## Requirements
 
 - rtk ≥ 0.25.0 (`rtk rewrite` first shipped in 0.25.0 per the rtk CHANGELOG; older versions pass commands through unchanged).
-- omp ≥ 18.12.4 (extension API: `tool_call` input replacement, `appendEntry`, status line).
+- omp ≥ 18.12.4 (extension API: `tool_call` input replacement, `appendEntry`, `registerCommand`).
 
 ## V2 scope
 
