@@ -1,0 +1,28 @@
+{
+  "name": "omp-rtk",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "omp": {
+    "name": "omp-rtk",
+    "version": "0.1.0",
+    "description": "rtk bash command rewriting plus an /rtk management command for omp",
+    "extensions": ["./src/index.ts"]
+  },
+  "peerDependencies": {
+    "@oh-my-pi/pi-coding-agent": "^18.12.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/bun": "^1.4.4"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "smoke": "bun scripts/smoke.ts"
+  }
+}
