@@ -25,7 +25,7 @@ omp plugin install ./omp-rtk   # user scope (the default)
 | --- | --- |
 | `/rtk` | Toggle rewriting on/off — persisted and effective immediately |
 | `/rtk status` | rtk version, on/off state, session savings, state file path |
-| `/rtk gain [args]` | rtk gain totals (read-only; `--reset`/`--yes`/`-y` are rejected) |
+| `/rtk gain [args]` | rtk gain totals (read-only; `--reset`/`--yes`/`-y` are rejected, and so are `--format`/`-f` because the plugin always asks rtk for JSON itself) |
 | `/rtk doctor` | Binary, version, rewrite contract, gain JSON, state file, conflicting env vars |
 | `/rtk discover` | First this session's commands that `rtk rewrite` could not rewrite — deduplicated with counts — then the `rtk discover --all` Claude Code scan under a secondary heading |
 | `/rtk help` (or any unknown argument) | Usage help |
