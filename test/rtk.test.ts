@@ -114,6 +114,21 @@ describe("shouldSkipCommand", () => {
   test('skips "A=1 B=2 rtk x"', () => {
     expect(shouldSkipCommand("A=1 B=2 rtk x", true, undefined)).toBe(true)
   })
+  test('skips "FOO=\\"a b\\" rtk git status"', () => {
+    expect(shouldSkipCommand('FOO="a b" rtk git status', true, undefined)).toBe(true)
+  })
+  test("skips \"FOO='a b' rtk git status\"", () => {
+    expect(shouldSkipCommand("FOO='a b' rtk git status", true, undefined)).toBe(true)
+  })
+  test('skips "FOO=bar rtk git status"', () => {
+    expect(shouldSkipCommand("FOO=bar rtk git status", true, undefined)).toBe(true)
+  })
+  test('keeps "FOO=\\"a b\\" git status"', () => {
+    expect(shouldSkipCommand('FOO="a b" git status', true, undefined)).toBe(false)
+  })
+  test('skips "A=1 B=\\"x y\\" rtk ls"', () => {
+    expect(shouldSkipCommand('A=1 B="x y" rtk ls', true, undefined)).toBe(true)
+  })
   test('keeps "git status" when enabled without env', () => {
     expect(shouldSkipCommand("git status", true, undefined)).toBe(false)
   })
@@ -134,6 +149,21 @@ describe("sanitizeGainArgs", () => {
   })
   test('rejects ["--yes"]', () => {
     expect(sanitizeGainArgs(["--yes"])).toEqual({ ok: false, rejected: ["--yes"] })
+  })
+  test('rejects ["--format"]', () => {
+    expect(sanitizeGainArgs(["--format"])).toEqual({ ok: false, rejected: ["--format"] })
+  })
+  test('rejects ["--format=json"]', () => {
+    expect(sanitizeGainArgs(["--format=json"])).toEqual({ ok: false, rejected: ["--format=json"] })
+  })
+  test('rejects ["--format", "json"]', () => {
+    expect(sanitizeGainArgs(["--format", "json"])).toEqual({ ok: false, rejected: ["--format"] })
+  })
+  test('rejects ["-f"]', () => {
+    expect(sanitizeGainArgs(["-f"])).toEqual({ ok: false, rejected: ["-f"] })
+  })
+  test('rejects ["-fjson"]', () => {
+    expect(sanitizeGainArgs(["-fjson"])).toEqual({ ok: false, rejected: ["-fjson"] })
   })
   test('keeps ["--all"]', () => {
     expect(sanitizeGainArgs(["--all"])).toEqual({ ok: true, args: ["--all"] })

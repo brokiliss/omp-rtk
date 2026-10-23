@@ -26,7 +26,6 @@ const DISCOVER_TIMEOUT_MS = 10_000
 const UNMATCHED_MAX = 100
 
 type Availability = { ok: boolean; reason: string; version: string | null }
-type ReportData = { title: string; lines: string[] }
 
 function errorCode(err: unknown): string | undefined {
   if (typeof err !== "object" || err === null) return undefined
@@ -166,19 +165,6 @@ export default async function (pi: ExtensionAPI): Promise<void> {
     return result
   }
 
-  pi.registerMessageRenderer<ReportData>("rtk-report", (message) => {
-    const raw: unknown = message.details ?? ("data" in message ? message.data : undefined)
-    const data: Partial<ReportData> = typeof raw === "object" && raw !== null ? (raw as Partial<ReportData>) : {}
-    const title = typeof data.title === "string" ? data.title : "rtk report"
-    const lines = Array.isArray(data.lines) ? data.lines.map((line) => String(line)) : []
-    return {
-      render: (width: number): readonly string[] => {
-        const cap = width > 0 ? width : 120
-        return [title, ...lines].map((row) => (row.length <= cap ? row : row.slice(0, cap)))
-      },
-    }
-  })
-
   // All registrations run before the probe await so a host never misses a handler mid-probe.
   pi.on("session_start", async (_event: SessionStartEvent, ctx: ExtensionContext) => {
     pendingSessionCtx = ctx
@@ -229,20 +215,25 @@ export default async function (pi: ExtensionAPI): Promise<void> {
         case "status": {
           const current = availability !== null && availability.ok ? await fetchGain(pi) : null
           const saved = current !== null && baseline !== null ? computeSessionSaved(current, baseline) : null
-          notify(
-            ctx,
-            [
-              `rtk ${availability !== null && availability.ok ? availability.version ?? "unknown" : "unavailable"} · rewriting ${enabled ? "on" : "off"}`,
-              `session saved: ${saved !== null ? formatShort(saved) : "unavailable"}`,
-              `state file: ${statePath}`,
-            ].join("\n")
-          )
+          const lines = [
+            `rtk ${availability !== null && availability.ok ? availability.version ?? "unknown" : "unavailable"} · rewriting ${enabled ? "on" : "off"}`,
+            `session saved: ${saved !== null ? formatShort(saved) : "unavailable"}`,
+            `state file: ${statePath}`,
+          ]
+          if (process.env.RTK_DISABLED === "1") {
+            lines.push("RTK_DISABLED=1: rewriting suppressed in this session")
+          }
+          notify(ctx, lines.join("\n"))
           break
         }
         case "gain": {
           const sanitized = sanitizeGainArgs(parsed.rest)
           if (!sanitized.ok) {
-            notify(ctx, `refused ${sanitized.rejected.join(", ")}: /rtk gain is read-only`, "warning")
+            notify(
+              ctx,
+              `refused ${sanitized.rejected.join(", ")}: /rtk gain is read-only and picks its own output format`,
+              "warning"
+            )
             break
           }
           const lines: string[] = []
@@ -370,7 +361,7 @@ export default async function (pi: ExtensionAPI): Promise<void> {
             [
               "/rtk — toggle rtk rewriting on/off (persisted)",
               "/rtk status — rtk version, on/off, session savings, state file path",
-              "/rtk gain [args] — rtk gain totals (read-only; --reset/--yes/-y rejected)",
+              "/rtk gain [args] — rtk gain totals (read-only; --reset/--yes/-y and --format/-f rejected)",
               "/rtk doctor — binary, version, rewrite contract, gain JSON, state file, conflicting env vars",
               "/rtk discover — this session's unmatched commands, then rtk discover --all",
             ].join("\n")

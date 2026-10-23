@@ -461,7 +461,7 @@ async function main(): Promise<void> {
         "session_start and tool_call handlers registered before the probe resolves"
       )
       check(mock.commands.has("rtk"), "rtk command registered before the probe resolves")
-      check(mock.messageRenderers.has("rtk-report"), "rtk-report renderer registered before the probe resolves")
+      check(mock.messageRenderers.size === 0, "no message renderers registered (rtk-report removed)")
       await mock.fireSessionStart(ctx)
       check(status.length === 0, `no status applied while the probe is still pending (got ${JSON.stringify(status)})`)
       probe.resolve(RES(0, "rtk 1.0.1\n"))
@@ -490,6 +490,27 @@ async function main(): Promise<void> {
       )
       check(notify.some((n) => n.message.includes("line one") && n.message.includes("line two")), "full report text notified")
       check(mock.sendMessageCalls.length === 0, "no sendMessage for the report")
+    })
+  )
+
+  await scenario("/rtk status states RTK_DISABLED=1 suppression", () =>
+    withTempAgentDir(async () => {
+      const mock = happyMock()
+      mock.script("rtk", ["gain", "--format", "json"], RES(0, gainJson(100, 200)))
+      const { ctx, notify } = makeContext()
+      await factory(mock as unknown as ExtensionAPI)
+      process.env.RTK_DISABLED = "1"
+      try {
+        await mock.runRtkCommand("status", ctx)
+        const msg = notify.find((n) => n.message.includes("rtk 1.0.1"))
+        check(msg !== undefined, `status notified (got ${JSON.stringify(notify.map((n) => n.message))})`)
+        check(
+          msg!.message.includes("RTK_DISABLED=1: rewriting suppressed in this session"),
+          `status states the suppression (got ${JSON.stringify(msg!.message)})`
+        )
+      } finally {
+        delete process.env.RTK_DISABLED
+      }
     })
   )
 

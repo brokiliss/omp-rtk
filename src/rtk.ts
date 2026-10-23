@@ -5,8 +5,11 @@ const FORBIDDEN_GAIN_ARGS: Record<string, true> = {
   "--reset": true,
   "--yes": true,
   "-y": true,
+  "--format": true,
+  "-f": true,
 }
-const ENV_ASSIGNMENT_PREFIX = /^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+/
+const ENV_ASSIGNMENT_PREFIX =
+  /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:[^\s"']+|"[^"]*"|'[^']*')\s+)+/
 
 export function parseSemver(raw: string): [number, number, number] | null {
   const m = raw.trim().match(/(\d+)\.(\d+)\.(\d+)/)
@@ -60,7 +63,14 @@ export function parseGain(stdout: string): GainSummary | null {
 export function sanitizeGainArgs(
   args: string[]
 ): { ok: true; args: string[] } | { ok: false; rejected: string[] } {
-  const rejected = args.filter((arg) => FORBIDDEN_GAIN_ARGS[arg] === true)
+  const rejected = args.filter((arg) => {
+    if (FORBIDDEN_GAIN_ARGS[arg] === true) return true
+    // The plugin always appends its own `--format json`; any user-supplied
+    // format flag (attached or separate value) would make clap reject the call.
+    if (arg.startsWith("--format=")) return true
+    if (arg.startsWith("-f") && arg.length > 2) return true
+    return false
+  })
   if (rejected.length > 0) return { ok: false, rejected }
   return { ok: true, args }
 }
